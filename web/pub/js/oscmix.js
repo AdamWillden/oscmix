@@ -1037,7 +1037,12 @@ function bindToggleBtn(btn, hiddenChk, addr, iface) {
 	const cached = iface.getCached(addr);
 	if (cached !== undefined) {
 		btn.active = !!cached;
-		if (hiddenChk) hiddenChk.checked = !!cached;
+		if (hiddenChk) {
+			hiddenChk.checked = !!cached;
+			// Notify the same UI listeners as a live OSC update when
+			// restoring a value received before this channel was created.
+			hiddenChk.dispatchEvent(new Event('change'));
+		}
 	}
 }
 
