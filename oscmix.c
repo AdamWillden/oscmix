@@ -277,7 +277,9 @@ setmixlevel(const struct input *in, const struct output *out, float level)
 	if (reg == -1)
 		return;
 
-	if (device->flags & DEVICE_MIXER_V2) {
+	if (device->mixlevel_encode) {
+		val = device->mixlevel_encode(p.out, level);
+	} else if (device->flags & DEVICE_MIXER_V2) {
 		/* UFX* mixer format:
 		 * bits[0-13]: 14-bit signed 1/10 dB (0 = 0 dB, negative = attenuation, -3000 = mute)
 		 * bit[14]:    parameter (0 = volume)
@@ -1005,12 +1007,27 @@ newmix(struct context *ctx, int val)
 	bool ispan;
 	struct level level;
 
-	if (ctx->param.out >= device->outputslen || ctx->param.in >= device->inputslen)
+	if ((unsigned)ctx->param.out >= device->outputslen ||
+	    (unsigned)ctx->param.in >= device->inputslen)
 		return;
-	assert(ctx->param.in >= 0);
-	assert(ctx->param.out >= 0);
 	in = &inputs[ctx->param.in];
 	out = &outputs[ctx->param.out];
+
+	if (device->mixlevel_decode) {
+		struct param p = ctx->param;
+		float vol;
+
+		if (device->mixlevel_decode(ctx->reg, val & 0xffff, &p, &vol) != 0 ||
+		    (unsigned)p.out >= device->outputslen)
+			return;
+		out = &outputs[p.out];
+		out->mix[p.in] = vol;
+		/* These are device fader levels, not cosine-panned matrix gains. */
+		snprintf(ctx->addr, ctx->addrend - ctx->addr, "/mix/%d/input/%d",
+			p.out + 1, p.in + 1);
+		oscsend(ctx->addr, ",fi", vol > 0.f ? 20.f * log10f(vol) : -INFINITY, 0);
+		return;
+	}
 
 	/*
 	 * Volume-only MIX echo path (FF802-class first-generation devices).
@@ -1652,6 +1669,8 @@ setrefresh(struct context *ctx, struct oscmsg *msg)
 	dsp.status = -1;
 
 	setval(ctx, device->refresh);
+	if (device->mixerrefreshreg)
+		setreg(device->mixerrefreshreg, device->mixerrefresh);
 	for (i = 0; i < device->outputslen; ++i) {
 		pb = &inputs[device->inputslen + i];
 		snprintf(addr, sizeof addr, "/playback/%d/stereo", i + 1);

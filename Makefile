@@ -188,3 +188,12 @@ clean:
 
 	$(MAKE) -C gtk clean
 	$(MAKE) -C web clean
+
+# Standalone mixer regression checks; no MIDI or network access.
+.PHONY: test-mixer
+test-mixer:
+	@set -eu; testbin=$$(mktemp); trap 'rm -f "$$testbin"' EXIT HUP INT TERM; \
+	for test in tests/feedback.c; do \
+		$(CC) $(CPPFLAGS) $(CFLAGS) -o "$$testbin" "$$test" osc.c sysex.c util.c $(DEVICES:.o=.c) -lm; \
+		"$$testbin"; \
+	done

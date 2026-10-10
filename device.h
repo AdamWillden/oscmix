@@ -233,9 +233,17 @@ struct device {
 	int outputslen;
 
 	int refresh;
+	/* Optional second state request for a device's mixer matrix. */
+	int mixerrefreshreg;
+	int mixerrefresh;
 
 	int (*ctltoreg)(enum control ctl, const struct param *p);
 	enum control (*regtoctl)(int reg, struct param *p);
+
+	int (*mixlevel_encode)(int out, float level);
+	/* Decode observed level feedback; update the addressed output in p.
+	 * Return -1 for unsupported registers or parameters. No device writes. */
+	int (*mixlevel_decode)(int reg, int raw, struct param *p, float *level);
 };
 
 #endif

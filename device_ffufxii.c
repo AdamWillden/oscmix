@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <math.h>
 #include <stddef.h>
 #include "device.h"
 #include "intpack.h"
@@ -120,19 +121,23 @@ regtoctl(int reg, struct param *p)
 		}
 	}
 
-	else if (reg >= 0x0B40 && reg < 0x0C1C) {
-		idx = (reg - 0x0B40) / 0x0A;
-		unsigned par = reg - (0x0B40 + 0x0A * idx);
-		switch (par) {
-			case 0x0: return MIX;
-			case 0x1: return MIX;
-			case 0x2: return MIX;
-			case 0x3: return MIX;
-			case 0x4: return MIX;
-			case 0x5: return MIX;
-			default: return -1;
-		}
+	/*
+	 * UFX II V2 mixer feedback.  A mixer cell is addressed by source
+	 * channel in blocks of 64, with the output pair in the low bits.
+	 * The L/R side is carried in the value, so hand the common (left)
+	 * output of the pair to the generic mixer-state handler.
+	 */
+	else if (reg >= MIX_IN_BASE && reg < MIX_PB_BASE) {
+		unsigned offset = reg - MIX_IN_BASE;
+		unsigned in = offset >> 6;
+		unsigned pair = offset & (MIX_STRIDE - 1);
+		if (in >= LEN(inputs) || pair >= LEN(outputs) / 2)
+			return -1;
+		p->in = in;
+		p->out = pair * 2;
+		return MIX;
 	}
+
 	switch (reg) {
 		case 0x0000: return INPUT_MUTE;
 		case 0x0001: return INPUT_FXSEND;
@@ -458,7 +463,7 @@ static int ctltoreg(enum control ctl, const struct param *p)
 			if (p->out == -1) break;
 			return reg + (p->out << 5);
 		case SETUP_ARCLEDS:           return 0x3E02;
-		case REFRESH:                 return 0x3E03;
+		case REFRESH:                 return 0x3E04;
 		case SETUP_STORE:             return 0x3E06;
 		case DUREC_CONTROL:           return 0x3E9A;
 		case DUREC_DELETE:            return 0x3E9B;
@@ -470,6 +475,34 @@ static int ctltoreg(enum control ctl, const struct param *p)
 	return -1;
 }
 
+/* Signed 13-bit tenths of a dB; bit 15 selects the output side. */
+static int
+mixlevel_encode(int out, float level)
+{
+	int db10 = level <= 0.f ? -3000 : lroundf(200.f * log10f(level));
+
+	return ((out & 1) << 15) | (db10 & 0x1fff);
+}
+
+static int
+mixlevel_decode(int reg, int raw, struct param *p, float *level)
+{
+	int db10;
+
+	/* Only the hardware-input MIX_LEVEL feedback range is established.
+	 * Playback readback and the older MIX region are not decoded here. */
+	if (reg < MIX_IN_BASE || reg >= MIX_PB_BASE || (raw & 0x4000))
+		return -1;
+	p->out += !!(raw & 0x8000);
+
+	/* Captured input feedback sets bit 13; exclude it from the signed
+	 * 13-bit level. Bit 14 selects pan, which is not decoded here. */
+	db10 = raw & 0x1fff;
+	if (db10 & 0x1000)
+		db10 -= 0x2000;
+	*level = db10 <= -650 ? 0.f : powf(10.f, db10 / 200.f);
+	return 0;
+}
 
 const struct device ffufxii = {
 	.id = "ffufxii",
@@ -480,7 +513,12 @@ const struct device ffufxii = {
 	.inputslen = LEN(inputs),
 	.outputs = outputs,
 	.outputslen = LEN(outputs),
-	.refresh = 0x234A, //0x67CD,
+	.refresh = 0x67CD,
+	/* 0x3E04 refreshes general state; this requests hardware-input mixer state. */
+	.mixerrefreshreg = 0x3E05,
+	.mixerrefresh = 0x3481,
+	.mixlevel_encode = mixlevel_encode,
+	.mixlevel_decode = mixlevel_decode,
 	.regtoctl = regtoctl,
 	.ctltoreg = ctltoreg,
 };
