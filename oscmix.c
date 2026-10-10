@@ -57,6 +57,10 @@ struct input {
 struct output {
 	bool stereo;
 	float *mix;
+	/* Desired direct-route levels set in this process; NAN means unknown.
+	 * No startup readback or persistence. External device edits can stale
+	 * this cache, and mute can affect only known routes. */
+	float *playback;
 	char name[12];
 };
 
@@ -402,6 +406,18 @@ muteinput(struct input *in, bool mute)
 	in[0].mute = mute;
 	if (in->stereo)
 		in[1].mute = mute;
+	if ((device->flags & DEVICE_PLAYBACK_DIRECT) && in - inputs >= device->inputslen) {
+		int source = in - inputs - device->inputslen;
+
+		for (out = outputs; out != outputs + device->outputslen; ++out) {
+			for (int ch = source; ch <= source + !!in->stereo; ++ch) {
+				float vol = out->playback[ch];
+				if (!isnan(vol))
+					setmixlevel(inputs + device->inputslen + ch, out, mute ? 0.f : vol);
+			}
+		}
+		return;
+	}
 	for (out = outputs; out != outputs + device->outputslen; ++out) {
 		mix = &out->mix[in - inputs];
 		if (!in->stereo && (device->flags & DEVICE_MIXER_V2) && out->stereo) {
@@ -434,6 +450,16 @@ setinputmute(struct context *ctx, struct oscmsg *msg)
 	in = &inputs[ctx->param.in];
 	setval(ctx, val);
 	muteinput(in, val);
+	if (ctx->param.in >= device->inputslen) {
+		char addr[64];
+		int source = (in - inputs - device->inputslen);
+		if (in->stereo)
+			source &= ~1;
+		for (int ch = source; ch <= source + !!in->stereo; ++ch) {
+			snprintf(addr, sizeof addr, "/playback/%d/mute", ch + 1);
+			oscsend(addr, ",i", val);
+		}
+	}
 }
 
 static void
@@ -767,9 +793,6 @@ setdb(const struct output *out, const struct input *in, float db)
 	setreg(reg, val);
 }
 
-
-
-
 static void
 setpan(const struct output *out, const struct input *in, int pan)
 {
@@ -927,6 +950,55 @@ setlevel(struct output *out, const struct input *in, bool instereo, const struct
 	}
 }
 
+/* Publish the scalar route without reconstructing a stereo matrix. */
+static void
+sendplaybacklevel(const struct output *out, const struct input *in, float vol)
+{
+	char addr[64];
+	int source = in - inputs - device->inputslen;
+	int dest = out - outputs;
+
+	for (int o = dest; o <= dest + !!out->stereo; ++o) {
+		for (int i = source; i <= source + !!in->stereo; ++i) {
+			snprintf(addr, sizeof addr, "/mix/%d/playback/%d", o + 1, i + 1);
+			oscsend(addr, ",fi", vol > 0.f ? 20.f * log10f(vol) : -INFINITY, 0);
+		}
+	}
+}
+
+static void
+setplaybacklevel(struct output *out, const struct input *in, struct oscmsg *msg)
+{
+	float *cached = &out->playback[in - inputs - device->inputslen];
+	float vol = *cached;
+	int pan = 0;
+
+	if (*msg->type == 'N') {
+		++msg->type;
+	} else {
+		float db = oscgetfloat(msg);
+		if (isnan(db) || db > 6.f)
+			return;
+		vol = db <= -65.f ? 0.f : powf(10.f, db / 20.f);
+	}
+	if (*msg->type)
+		pan = oscgetint(msg);
+	if (oscend(msg) != 0)
+		return;
+	/* Direct level writes are verified; playback pan is not. */
+	if (pan != 0) {
+		fprintf(stderr, "Playback pan is not supported by this device backend\n");
+		if (!isnan(*cached))
+			sendplaybacklevel(out, in, *cached);
+		return;
+	}
+	if (isnan(vol))
+		return;
+	*cached = vol;
+	setmixlevel(in, out, in->mute ? 0.f : vol);
+	sendplaybacklevel(out, in, vol);
+}
+
 static void
 setmix(struct context *ctx, struct oscmsg *msg)
 {
@@ -963,6 +1035,11 @@ setmix(struct context *ctx, struct oscmsg *msg)
 		--out;
 	if (in->stereo && (in - inputs) & 1)
 		--in;
+
+	if ((device->flags & DEVICE_PLAYBACK_DIRECT) && in - inputs >= device->inputslen) {
+		setplaybacklevel(out, in, msg);
+		return;
+	}
 
 	calclevel(out, in, 1, &level);
 	level.width = in->width;
@@ -1675,6 +1752,20 @@ setrefresh(struct context *ctx, struct oscmsg *msg)
 		pb = &inputs[device->inputslen + i];
 		snprintf(addr, sizeof addr, "/playback/%d/stereo", i + 1);
 		oscsend(addr, ",i", pb->stereo);
+		snprintf(addr, sizeof addr, "/playback/%d/mute", i + 1);
+		oscsend(addr, ",i", pb->mute);
+		if (device->flags & DEVICE_PLAYBACK_DIRECT) {
+			/* Replay only locally known levels; this is not device readback. */
+			if (pb->stereo && (i & 1))
+				continue;
+			for (int o = 0; o < device->outputslen; ++o) {
+				struct output *out = &outputs[o];
+				if (out->stereo && (o & 1))
+					continue;
+				if (!isnan(out->playback[i]))
+					sendplaybacklevel(out, pb, out->playback[i]);
+			}
+		}
 	}
 	oscflush();
 }
@@ -2423,6 +2514,15 @@ init(const char *port)
 		if (!out->mix) {
 			perror(NULL);
 			return -1;
+		}
+		if (device->flags & DEVICE_PLAYBACK_DIRECT) {
+			out->playback = malloc(device->outputslen * sizeof *out->playback);
+			if (!out->playback) {
+				perror(NULL);
+				return -1;
+			}
+			for (j = 0; j < device->outputslen; ++j)
+				out->playback[j] = NAN;
 		}
 	}
 	return 0;

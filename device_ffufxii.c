@@ -508,7 +508,10 @@ const struct device ffufxii = {
 	.id = "ffufxii",
 	.name = "Fireface UFX II",
 	.version = 25,
-	.flags = DEVICE_HAS_DUREC | DEVICE_HAS_ROOMEQ | DEVICE_MIXER_V2,
+	/* Playback Analog 1/2 -> Phones 9/10: direct writes verified at
+	 * 0x4784=0x0000 (0 dB) and 0x1F9C (-10 dB). Other mono/stereo
+	 * configurations still need hardware verification. */
+	.flags = DEVICE_HAS_DUREC | DEVICE_HAS_ROOMEQ | DEVICE_MIXER_V2 | DEVICE_PLAYBACK_DIRECT,
 	.inputs = inputs,
 	.inputslen = LEN(inputs),
 	.outputs = outputs,
