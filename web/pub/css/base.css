@@ -15,6 +15,12 @@
 	--mono-width-visible: none;
 }
 
+select, input, button
+{
+	color-scheme: var(--color-scheme, light);
+	color: var(--color, initial);
+}
+
 /* - Ensure the HTML hidden attribute is never overridden by display rules */
 [hidden] {
 	display: none !important;
@@ -134,6 +140,7 @@ input:checked + .slider::before {
 	display: inline-block;
 	min-height: 1.1em;
 	width: 50%;
+	color-scheme: var(--color-scheme, light);
 }
 
 

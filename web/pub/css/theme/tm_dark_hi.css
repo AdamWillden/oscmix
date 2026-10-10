@@ -1,4 +1,5 @@
 :root {
+	--color-scheme: dark;
 
 	/* Dimensions */
 	--channel-width: 7em;
@@ -567,7 +568,6 @@ body.global-solo-enabled .channel-mute:has(.solo-checkbox:checked) .btn-solo {
 .channel-panel-buttons {
 	margin-top: auto;
 	margin-bottom: 4px;
-	width: 1.5em;
 }
 
 .channel-panel-buttons .toggle-button {

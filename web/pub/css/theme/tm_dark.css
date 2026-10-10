@@ -1,4 +1,6 @@
 :root {
+	--color-scheme: dark;
+
 	/* Dimensions */
 	--channel-width: 90px;
 	--sidebar-width: 19em;
@@ -497,7 +499,6 @@ input[type=range]:focus {
 .channel-panel-buttons {
 	margin-top: auto;
 	margin-bottom: 4px;
-	width: 1.5em;
 }
 
 .channel-panel-buttons .toggle-button {
