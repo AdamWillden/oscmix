@@ -1,32 +1,7 @@
-/* canvas-based knob widget */
-.knob-container {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 2px;
-}
-
-.knob-label {
-	font-size: 9px;
-	color: var(--clr-knob-value, #aaa);
-	text-transform: uppercase;
-	letter-spacing: .5px;
-	user-select: none;
-}
-
-canvas.knob {
-	cursor: ns-resize;
-	display: block;
-}
-
-.knob-value {
-	font-size: 9px;
-	color: var(--clr-knob-value, orange);
-	text-align: center;
-	min-height: 12px;
-	user-select: none;
-}
-
-.knob-center-label .knob-value {
-	display: none;
-}
+/*
+ * OscMix Web
+ * Copyright (C) 2026 Martin Augustyniak
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ * https://www.gnu.org/licenses/gpl-3.0.html
+ */
+:root{--knob-size: 36px;--knob-label-pos: bottom;--knob-label-font: calc(var(--knob-size) * .225);--knob-value-font: calc(var(--knob-size) * .225);--knob-unit-font: calc(var(--knob-size) * .1875);--knob-unit-linked-font: calc(var(--knob-size) * .33)}.knob-wrap{display:grid;grid-template-columns:auto auto auto;grid-template-rows:auto auto auto;align-items:center;justify-items:center;column-gap:3px;row-gap:1px;width:fit-content}.knob-wrap[hidden]{display:none}.knob-wrap>.dial{grid-area:2 / 2}.knob-label{grid-area:3 / 1 / 4 / 4;font-size:var(--knob-label-font);line-height:1.15;color:var(--text-dim);text-align:center}@container style(--knob-label-pos: top){.knob-label{grid-area:1 / 1 / 2 / 4}}@container style(--knob-label-pos: top-left){.knob-label{grid-area:1 / 1 / 2 / 2;justify-self:start;text-align:left}}@container style(--knob-label-pos: middle-left){.knob-label{grid-area:2 / 1 / 3 / 2;justify-self:start;text-align:left}}@container style(--knob-label-pos: bottom-left){.knob-label{grid-area:3 / 1 / 4 / 2;justify-self:start;text-align:left}}.dial{position:relative;flex:0 0 auto;width:var(--knob-size);height:var(--knob-size);cursor:pointer;touch-action:none;-webkit-touch-callout:none}.dial svg{width:var(--knob-size);height:var(--knob-size);display:block}.arc-track{stroke:#1a1b1f}.arc-value{stroke:#e08a3c;stroke-linecap:round}.arc-fx-in{stroke:var(--accent-green)}.arc-fx-out{stroke:var(--accent-cyan)}.dial-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:var(--knob-value-font);color:var(--text);font-variant-numeric:tabular-nums;pointer-events:none}.dial-unit{position:absolute;left:0;right:0;bottom:calc(var(--knob-size) * .06);text-align:center;font-size:var(--knob-unit-font);line-height:1;color:var(--text-dim);pointer-events:none}.dial-unit.linked{font-size:var(--knob-unit-linked-font)}.dial-edit{position:absolute;top:calc(var(--knob-size) * .28);left:calc(var(--knob-size) * -.19);right:calc(var(--knob-size) * -.19);height:calc(var(--knob-size) * .44);z-index:1;padding:0;text-align:center;font-size:calc(var(--knob-size) * .28);background:#1a1b1f;color:var(--text);border:1px solid #e08a3c;border-radius:3px;cursor:text}.strip>.knob-wrap{align-self:center;margin:4px 0}

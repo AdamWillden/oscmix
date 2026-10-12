@@ -1,0 +1,7 @@
+/*
+ * OscMix Web
+ * Copyright (C) 2026 Martin Augustyniak
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ * https://www.gnu.org/licenses/gpl-3.0.html
+ */
+.meter{position:relative;height:100%;width:var(--meter-w, 1.35em);background:#08090c38;border-radius:1px;overflow:hidden}.meter--stereo{width:var(--meter-w-stereo, .62em)}.meter-bar{position:absolute;inset:0;background:linear-gradient(to top,var(--meter-lo) 0%,var(--meter-hi) 62%,rgba(214,206,66,.78) 82%,rgba(226,150,48,.83) 92%,rgba(214,66,54,.9) 100%);clip-path:inset(100% 0 0 0);will-change:clip-path}.meter-peak{position:absolute;left:0;right:0;height:2px;margin-bottom:-1px;background:var(--meter-accent);opacity:0;pointer-events:none}.meter-over{position:absolute;top:0;left:0;right:0;height:3px;background:#e2483a;opacity:0;transition:opacity 80ms linear;pointer-events:none}.meter.clip .meter-over{opacity:1}

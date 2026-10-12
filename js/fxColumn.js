@@ -1,0 +1,7 @@
+/*
+ * OscMix Web
+ * Copyright (C) 2026 Martin Augustyniak
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ * https://www.gnu.org/licenses/gpl-3.0.html
+ */
+"use strict";import{Store}from"./store.js";const slotBodies=new Map;export function fxSlotBody(id){return slotBodies.get(id)}function buildSlot(id,title,pendingNote){const slot=document.getElementById(id);if(slot.textContent="",title!==null){const titleEl=document.createElement("div");titleEl.className="fx-slot-title dock-title",titleEl.textContent=title,slot.appendChild(titleEl)}const body=document.createElement("div");if(body.className="fx-slot-body",pendingNote){const note=document.createElement("div");note.className="fx-slot-pending",note.textContent=pendingNote,body.appendChild(note)}return slot.appendChild(body),slotBodies.set(id,body),body}let applyFxVisible=null;export function setFxVisible(visible){const on=visible!==!1;Store.set("fxVisible",on),applyFxVisible?.(on)}export function initFxColumn(){buildSlot("fx-reverb",null,"controls coming with the FX phase"),buildSlot("fx-echo",null,"controls coming with the FX phase"),buildSlot("fx-controlroom","control room");const btn=document.getElementById("fx-toggle"),apply=visible2=>{document.body.classList.toggle("fx-hidden",!visible2),btn.classList.toggle("active",visible2),btn.title=visible2?"hide FX":"show FX"};let visible=Store.get("fxVisible",!0)!==!1;applyFxVisible=v=>{visible=v,apply(v)},apply(visible),btn.addEventListener("click",()=>{visible=!visible,Store.set("fxVisible",visible),apply(visible)})}
